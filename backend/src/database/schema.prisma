@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?   // Hashed
+  organization  String?
+  role          String    @default("user")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+}
+
+model Session {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  name            String
+  status          String        @default("active")
+  startedAt       DateTime      @default(now())
+  endedAt         DateTime?
+  intentAlignment Float         @default(100)
+  agents          Agent[]
+  delegations     Delegation[]
+  violations      Violation[]
+  toolCalls       MCPToolCall[]
+  driftEvents     DriftEvent[]
+}
+
+model Agent {
+  id            String    @id @default(cuid())
+  sessionId     String?
+  session       Session?  @relation(fields: [sessionId], references: [id])
+  name          String
+  type          String
+  capabilities  String[]  // Stored as array
+  status        String    @default("active")
+  lastSeen      DateTime  @default(now())
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+}
+
+model Delegation {
+  id              String      @id @default(cuid())
+  sessionId       String?
+  session         Session?    @relation(fields: [sessionId], references: [id])
+  fromAgentId     String
+  toAgentId       String
+  task            String
+  originalIntent  String
+  status          String      @default("pending")
+  timestamp       DateTime    @default(now())
+  violations      Violation[]
+}
+
+model Violation {
+  id            String       @id @default(cuid())
+  sessionId     String?
+  session       Session?     @relation(fields: [sessionId], references: [id])
+  delegationId  String?
+  delegation    Delegation?  @relation(fields: [delegationId], references: [id])
+  type          String
+  severity      String
+  description   String
+  agentId       String?
+  timestamp     DateTime     @default(now())
+  resolved      Boolean      @default(false)
+  resolution    String?
+}
+
+model MCPToolCall {
+  id          String    @id @default(cuid())
+  sessionId   String?
+  session     Session?  @relation(fields: [sessionId], references: [id])
+  agentId     String
+  tool        String
+  params      Json
+  status      String    @default("pending")
+  reason      String?
+  timestamp   DateTime  @default(now())
+}
+
+model DriftEvent {
+  id          String    @id @default(cuid())
+  sessionId   String
+  session     Session   @relation(fields: [sessionId], references: [id])
+  type        String
+  description String
+  severity    String
+  timestamp   DateTime  @default(now())
+}
+
+model MemoryContext {
+  id              String    @id @default(cuid())
+  sessionId       String
+  agentId         String
+  securityLevel   String
+  content         String
+  isolated        Boolean   @default(false)
+  timestamp       DateTime  @default(now())
+}
+
+model MemoryPollution {
+  id                  String    @id @default(cuid())
+  sessionId           String
+  pollutantAgentId    String
+  targetContextId     String
+  pollutionType       String
+  detected            Boolean   @default(true)
+  blocked             Boolean   @default(true)
+  timestamp           DateTime  @default(now())
+}
